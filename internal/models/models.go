@@ -23,28 +23,25 @@ type OTPCode struct {
 }
 
 type Category struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"not null" json:"name"`
-	ImageURL    string         `json:"image_url"`
-	Description string         `json:"description"`
-	Products    []Product      `gorm:"foreignKey:CategoryID" json:"products,omitempty"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	Category string `gorm:"primaryKey;column:category;type:text" json:"category"`
+}
+
+func (Category) TableName() string {
+	return "categories"
 }
 
 type Product struct {
 	ID              uint           `gorm:"primaryKey" json:"id"`
-	CategoryID      uint           `gorm:"not null;index" json:"category_id"`
-	Category        *Category      `json:"category,omitempty"`
+	Category        string         `gorm:"type:text;not null;index" json:"category"`
 	Name            string         `gorm:"not null" json:"name"`
 	ImageURL        string         `json:"image_url"`
 	Description     string         `json:"description"`
 	Price           float64        `gorm:"not null" json:"price"`
 	DiscountPercent float64        `gorm:"default:0" json:"discount_percent"`
 	IsSpecialOffer  bool           `gorm:"default:false;index" json:"is_special_offer"`
-	Weight          string         `json:"weight"`
-	Color           string         `json:"color"`
+	Rating          float64        `gorm:"default:4.5" json:"rating"`
+	Weight          string         `json:"weight,omitempty"`
+	Color           string         `json:"color,omitempty"`
 	Comments        []Comment      `gorm:"foreignKey:ProductID" json:"comments,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`

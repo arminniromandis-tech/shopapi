@@ -75,6 +75,10 @@ func main() {
 			products.POST("", productHandler.CreateProduct)
 			products.GET("/:id/comments", productHandler.GetComments)
 
+			// Product rating update
+			products.POST("/:id/rating", productHandler.UpdateRating)
+			products.PUT("/:id/rating", productHandler.UpdateRating)
+
 			// Protected comment creation
 			products.POST("/:id/comments", middleware.AuthMiddleware(cfg), productHandler.AddComment)
 		}

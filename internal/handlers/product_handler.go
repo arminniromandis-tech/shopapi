@@ -40,35 +40,18 @@ func (h *ProductHandler) CreateCategory(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"category": category})
 }
 
-// GetCategoryProducts returns products under a specific category by ID or by Name
+// GetCategoryProducts returns products under a specific category by name
 func (h *ProductHandler) GetCategoryProducts(c *gin.Context) {
-	identifier := c.Param("identifier")
-
-	var category models.Category
-
-	// Check if identifier is numeric (ID) or string (Category Name)
-	categoryID, err := strconv.Atoi(identifier)
-	if err == nil {
-		if err := database.DB.First(&category, categoryID).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
-			return
-		}
-	} else {
-		// Search by category name (case-insensitive & supports partial match)
-		if err := database.DB.Where("LOWER(name) LIKE LOWER(?)", "%"+identifier+"%").First(&category).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Category not found with name: " + identifier})
-			return
-		}
-	}
+	categoryName := c.Param("identifier")
 
 	var products []models.Product
-	if err := database.DB.Where("category_id = ?", category.ID).Find(&products).Error; err != nil {
+	if err := database.DB.Where("category = ? OR LOWER(category) = LOWER(?)", categoryName, categoryName).Find(&products).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch category products"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"category": category.Name,
+		"category": categoryName,
 		"products": products,
 	})
 }
@@ -93,12 +76,49 @@ func (h *ProductHandler) GetProductDetails(c *gin.Context) {
 	}
 
 	var product models.Product
-	if err := database.DB.Preload("Category").Preload("Comments.User").First(&product, productID).Error; err != nil {
+	if err := database.DB.Preload("Comments.User").First(&product, productID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"product": product})
+}
+
+type UpdateRatingRequest struct {
+	Rating float64 `json:"rating" binding:"required,gte=1,lte=5"`
+}
+
+// UpdateRating updates the rating of a product (calculated by client)
+func (h *ProductHandler) UpdateRating(c *gin.Context) {
+	productIDStr := c.Param("id")
+	productID, err := strconv.Atoi(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	var req UpdateRatingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Rating must be a number between 1.0 and 5.0"})
+		return
+	}
+
+	var product models.Product
+	if err := database.DB.First(&product, productID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	if err := database.DB.Model(&product).Update("rating", req.Rating).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product rating"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Product rating updated successfully",
+		"product_id": product.ID,
+		"rating":     req.Rating,
+	})
 }
 
 // CreateProduct adds a new product
